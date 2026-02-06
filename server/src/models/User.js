@@ -20,10 +20,6 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'agent', 'vendor', 'admin'],
         default: 'user',
     },
-    walletBalance: {
-        type: Number,
-        default: 0,
-    },
 }, {
     timestamps: true,
 });

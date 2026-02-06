@@ -24,10 +24,20 @@ const registerUser = async (req, res) => {
             name,
             email,
             password,
-            role, // Optional: In a real app, you might want to restrict role creation
+            role,
         });
 
         if (user) {
+            // Create Vendor profile if role is vendor
+            if (role === 'vendor') {
+                const Vendor = require('../models/Vendor');
+                await Vendor.create({
+                    user: user._id,
+                    storeName: req.body.storeName,
+                    location: req.body.location,
+                });
+            }
+
             res.status(201).json({
                 _id: user._id,
                 name: user.name,

@@ -1,9 +1,11 @@
 import { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import CartContext from '../context/CartContext';
 
 const Navbar = () => {
     const { user, logout } = useContext(AuthContext);
+    const { cartItems } = useContext(CartContext);
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -21,8 +23,14 @@ const Navbar = () => {
                     <div className="flex space-x-4">
                         {user ? (
                             <>
-                                <Link to="/dashboard" className="text-gray-600 hover:text-gray-800">
+                                <Link to="/dashboard" className="text-gray-600 hover:text-gray-800 flex items-center">
                                     Dashboard
+                                </Link>
+                                <Link to="/products" className="text-gray-600 hover:text-gray-800 flex items-center">
+                                    Browse
+                                </Link>
+                                <Link to="/cart" className="text-gray-600 hover:text-gray-800 font-medium flex items-center">
+                                    Cart ({cartItems.length})
                                 </Link>
                                 <button
                                     onClick={handleLogout}

@@ -9,7 +9,7 @@ const orderSchema = new mongoose.Schema({
     vendor: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'User',
+        ref: 'Vendor',
     },
     deliveryAgent: {
         type: mongoose.Schema.Types.ObjectId,
@@ -19,12 +19,18 @@ const orderSchema = new mongoose.Schema({
         {
             product: {
                 type: mongoose.Schema.Types.ObjectId,
-                required: true,
+                required: false,
                 ref: 'Product',
             },
             name: { type: String, required: true },
             price: { type: Number, required: true },
             qty: { type: Number, required: true },
+            fileUrl: { type: String },
+            printOptions: {
+                color: { type: String, enum: ['bw', 'color'], default: 'bw' },
+                pages: { type: Number },
+                copies: { type: Number, default: 1 },
+            },
         },
     ],
     totalAmount: {

@@ -8,6 +8,8 @@ const Register = () => {
         email: '',
         password: '',
         role: 'user',
+        storeName: '',
+        location: '',
     });
     const { register } = useContext(AuthContext);
     const navigate = useNavigate();
@@ -81,6 +83,33 @@ const Register = () => {
                             <option value="admin">Admin</option>
                         </select>
                     </div>
+
+                    {formData.role === 'vendor' && (
+                        <>
+                            <div>
+                                <label className="block mb-1 text-sm font-medium">Store Name</label>
+                                <input
+                                    type="text"
+                                    name="storeName"
+                                    value={formData.storeName}
+                                    onChange={handleChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-1 text-sm font-medium">Location</label>
+                                <input
+                                    type="text"
+                                    name="location"
+                                    value={formData.location}
+                                    onChange={handleChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
+                                    required
+                                />
+                            </div>
+                        </>
+                    )}
                     <button
                         type="submit"
                         className="w-full py-2 text-white bg-blue-600 rounded hover:bg-blue-700"

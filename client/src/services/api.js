@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-    baseURL: 'http://localhost:5001/api/auth',
+    baseURL: 'http://localhost:5001/api',
 });
 
 API.interceptors.request.use((req) => {
@@ -12,5 +12,36 @@ API.interceptors.request.use((req) => {
     }
     return req;
 });
+
+API.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
+
+export const uploadFile = (formData) => API.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+});
+
+export const createOrder = (orderData) => API.post('/orders', orderData);
+
+
+
+export const getVendorOrders = () => API.get('/orders/vendor');
+
+export const getMyOrders = () => API.get('/orders/myorders');
+
+export const getVendors = () => API.get('/vendors');
+
+export const addProduct = (productData) => API.post('/products', productData);
+
+export const getAllProducts = () => API.get('/products');
+
+export const updateOrderStatus = (orderId, status) => API.put(`/orders/${orderId}/status`, { status });
 
 export default API;
