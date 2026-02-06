@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'agent', 'vendor', 'admin'],
         default: 'user',
     },
+    isAvailable: {
+        type: Boolean,
+        default: false,
+    },
 }, {
     timestamps: true,
 });

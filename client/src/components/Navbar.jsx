@@ -32,6 +32,9 @@ const Navbar = () => {
                                 <Link to="/cart" className="text-gray-600 hover:text-gray-800 font-medium flex items-center">
                                     Cart ({cartItems.length})
                                 </Link>
+                                <Link to="/delivery" className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center">
+                                    Delivery
+                                </Link>
                                 <button
                                     onClick={handleLogout}
                                     className="text-gray-600 hover:text-red-600"

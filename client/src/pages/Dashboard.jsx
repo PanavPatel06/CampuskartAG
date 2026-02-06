@@ -160,6 +160,48 @@ const Dashboard = () => {
                                             <div className="mt-2 text-right">
                                                 <p className="font-bold text-gray-800">Total: ₹{order.totalAmount}</p>
                                             </div>
+
+                                            {/* Vendor Actions */}
+                                            <div className="mt-4 flex space-x-2 pt-4 border-t border-gray-200">
+                                                {order.status === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(order._id, 'accepted')}
+                                                            className="flex-1 bg-green-600 text-white py-1 rounded text-sm hover:bg-green-700"
+                                                        >
+                                                            Accept
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(order._id, 'cancelled')}
+                                                            className="flex-1 bg-red-600 text-white py-1 rounded text-sm hover:bg-red-700"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {order.status === 'accepted' && (
+                                                    <button
+                                                        onClick={() => handleStatusUpdate(order._id, 'out_for_delivery')}
+                                                        className="flex-1 bg-blue-600 text-white py-1 rounded text-sm hover:bg-blue-700"
+                                                    >
+                                                        Out for Delivery
+                                                    </button>
+                                                )}
+                                                {order.status === 'out_for_delivery' && (
+                                                    <button
+                                                        onClick={() => handleStatusUpdate(order._id, 'delivered')}
+                                                        className="flex-1 bg-purple-600 text-white py-1 rounded text-sm hover:bg-purple-700"
+                                                    >
+                                                        Mark Delivered
+                                                    </button>
+                                                )}
+                                                {order.status === 'delivered' && (
+                                                    <span className="flex-1 text-center text-green-600 font-bold text-sm">Completed</span>
+                                                )}
+                                                {order.status === 'cancelled' && (
+                                                    <span className="flex-1 text-center text-red-600 font-bold text-sm">Cancelled</span>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

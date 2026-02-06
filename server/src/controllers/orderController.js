@@ -111,6 +111,37 @@ const updateOrderStatus = async (req, res) => {
 
         order.status = status;
         const updatedOrder = await order.save();
+
+        // Socket.IO: Notify agents if order is marked ready/out_for_delivery
+        if (status === 'out_for_delivery' || status === 'accepted') {
+            try {
+                const { getIO } = require('../socket');
+                const io = getIO();
+
+                // Populate vendor details for the notification
+                const populatedOrder = await Order.findById(updatedOrder._id).populate('vendor', 'storeName location');
+
+                if (!populatedOrder || !populatedOrder.vendor) {
+                    console.error(`[Socket] Error: Vendor data missing for Order ${updatedOrder._id}`);
+                } else {
+                    // Emit to agents in the same location as the vendor
+                    const locationRaw = populatedOrder.vendor.location || "";
+                    const normalizedLocation = locationRaw.toLowerCase().replace(/\s+/g, '_');
+                    const targetRoom = `delivery_${normalizedLocation}`;
+
+                    console.log(`[Socket] Vendor Location: '${locationRaw}' -> Room: '${targetRoom}'`);
+
+                    // Debug: Emit to both specific and global room
+                    io.to(targetRoom).emit('new_delivery_request', populatedOrder);
+                    io.to('delivery_agents').emit('new_delivery_request', populatedOrder);
+
+                    console.log(`[Socket] SUCCESS: Emitted event to ${targetRoom} AND delivery_agents`);
+                }
+            } catch (err) {
+                console.error('[Socket] CRITICAL FAILURE:', err);
+            }
+        }
+
         res.json(updatedOrder);
     } else {
         res.status(404);

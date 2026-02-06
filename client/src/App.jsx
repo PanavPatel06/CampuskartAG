@@ -8,6 +8,7 @@ import PrintOrder from './pages/PrintOrder';
 import AddProduct from './pages/AddProduct';
 import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
+import DeliveryDashboard from './pages/DeliveryDashboard';
 
 import { CartProvider } from './context/CartContext';
 
@@ -26,6 +27,7 @@ function App() {
             <Route path="/add-product" element={<AddProduct />} />
             <Route path="/products" element={<ProductList />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/delivery" element={<DeliveryDashboard />} />
           </Route>
         </Routes>
       </CartProvider>
