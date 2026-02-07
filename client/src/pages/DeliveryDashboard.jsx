@@ -37,6 +37,9 @@ const DeliveryDashboard = () => {
             socket.emit("join_delivery", { userId: user._id, location: selectedLocation });
             console.log(`[Client] Emitting join_delivery for ${selectedLocation}`);
 
+            // Clear previous orders to avoid ghost data
+            setAvailableOrders([]);
+
             // Fetch existing available orders
             const fetchExisting = async () => {
                 try {
@@ -59,6 +62,16 @@ const DeliveryDashboard = () => {
 
         socket.on("new_delivery_request", (order) => {
             console.log("New order received:", order);
+
+            // STRICT CLIENT-SIDE CHECK
+            // Use optional chaining and default to empty string to prevent crashes
+            const orderLocation = order.vendor?.location || "";
+            // Compare normalized locations
+            if (orderLocation.trim().toLowerCase() !== selectedLocation.trim().toLowerCase()) {
+                console.log(`[Client] Ignoring order from '${orderLocation}' (Current: '${selectedLocation}')`);
+                return;
+            }
+
             const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-positive-notification-951.mp3');
             audio.play().catch(e => console.log("Audio play failed", e));
 
@@ -69,6 +82,11 @@ const DeliveryDashboard = () => {
         });
 
         return () => {
+            // CLEANUP: Leave the room when unwounting or changing location
+            if (user) {
+                console.log(`[Client] Leaving room for ${selectedLocation}`);
+                socket.emit("leave_delivery", { userId: user._id, location: selectedLocation });
+            }
             socket.off("new_delivery_request");
             socket.off("connect");
             socket.off("connect_error");
@@ -77,8 +95,8 @@ const DeliveryDashboard = () => {
 
     const handleAcceptOrder = async (orderId) => {
         try {
-            await updateOrderStatus(orderId, 'out_for_delivery'); // Or a specific 'accepted_by_agent' status logic
-            alert("Order Accepted! Please pick it up from the vendor.");
+            await updateOrderStatus(orderId, 'agent_requested');
+            alert("Request sent to Vendor! Please wait for approval in your main Dashboard.");
             setAvailableOrders(prev => prev.filter(o => o._id !== orderId));
         } catch (error) {
             console.error("Failed to accept order:", error);
@@ -168,7 +186,7 @@ const DeliveryDashboard = () => {
                                 onClick={() => handleAcceptOrder(order._id)}
                                 className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition-colors font-bold"
                             >
-                                Accept Delivery
+                                Request Delivery
                             </button>
                         </div>
                     ))

@@ -10,11 +10,15 @@ const http = require('http');
 const startSocket = require('./src/socket');
 
 // Connect to Database
-connectDB();
+// Connect to Database
+connectDB().then(() => {
+    const server = http.createServer(app);
+    const io = startSocket.initSocket(server);
 
-const server = http.createServer(app);
-const io = startSocket.initSocket(server);
-
-server.listen(port, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+    server.listen(port, () => {
+        console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+    });
+}).catch(err => {
+    console.error('Failed to connect to Database', err);
+    process.exit(1);
 });

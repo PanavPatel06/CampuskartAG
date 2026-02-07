@@ -44,6 +44,10 @@ export const getAllProducts = () => API.get('/products');
 
 export const getAvailableOrders = (location) => API.get(`/orders/delivery/available?location=${location}`);
 
+export const getMyDeliveries = () => API.get('/orders/delivery/my');
+
+export const getAllOrders = () => API.get('/orders/admin/all');
+
 export const updateOrderStatus = (orderId, status) => API.put(`/orders/${orderId}/status`, { status });
 
 export default API;

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import AuthContext from '../context/AuthContext';
-import { getMyOrders, getVendorOrders, updateOrderStatus } from '../services/api';
+import { getMyOrders, getVendorOrders, updateOrderStatus, getAllOrders, getMyDeliveries } from '../services/api';
 
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
@@ -19,6 +19,14 @@ const Dashboard = () => {
                 } else if (user.role === 'user') {
                     const response = await getMyOrders();
                     console.log('[Dashboard] User Orders Response:', response.data);
+                    data = response.data;
+                } else if (user.role === 'admin') {
+                    const response = await getAllOrders();
+                    console.log('[Dashboard] Admin Orders Response:', response.data);
+                    data = response.data;
+                } else if (user.role === 'agent') {
+                    const response = await getMyDeliveries();
+                    console.log('[Dashboard] Agent Deliveries Response:', response.data);
                     data = response.data;
                 }
                 if (data) {
@@ -188,14 +196,27 @@ const Dashboard = () => {
                                                         </button>
                                                     </>
                                                 )}
-                                                {order.status === 'accepted' && (
-                                                    <button
-                                                        onClick={() => handleStatusUpdate(order._id, 'out_for_delivery')}
-                                                        className="flex-1 bg-blue-600 text-white py-1 rounded text-sm hover:bg-blue-700"
-                                                    >
-                                                        Out for Delivery
-                                                    </button>
+                                                {/* Handshake: Vendor Approves Agent Request */}
+                                                {(order.status === 'accepted' || order.status === 'agent_requested') && (
+                                                    <div className="flex-1">
+                                                        {order.status === 'agent_requested' ? (
+                                                            <div className="flex flex-col space-y-1">
+                                                                <p className="text-xs text-blue-600 font-bold">Request from Agent!</p>
+                                                                <button
+                                                                    onClick={() => handleStatusUpdate(order._id, 'out_for_delivery')}
+                                                                    className="bg-blue-600 text-white py-1 rounded text-sm hover:bg-blue-700 w-full animate-pulse"
+                                                                >
+                                                                    Approve Agent
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-center text-xs text-gray-500 italic">
+                                                                Waiting for delivery agent...
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
+                                                {/* Old 'Out for Delivery' button removed in favor of Handshake flow above */}
                                                 {order.status === 'out_for_delivery' && (
                                                     <button
                                                         onClick={() => handleStatusUpdate(order._id, 'delivered')}
@@ -220,16 +241,78 @@ const Dashboard = () => {
                 )}
 
                 {user.role === 'agent' && (
-                    <div className="bg-white p-6 rounded shadow border-l-4 border-orange-500">
-                        <h2 className="text-xl font-bold mb-4">Delivery Tasks</h2>
-                        <p className="text-gray-500">No pending deliveries.</p>
+                    <div className="bg-white p-6 rounded shadow border-l-4 border-orange-500 col-span-1 md:col-span-2">
+                        <h2 className="text-xl font-bold mb-4">My Delivery Tasks</h2>
+                        {orders.length === 0 ? (
+                            <p className="text-gray-500">No active deliveries. Go to "Delivery" page to find work.</p>
+                        ) : (
+                            <div className="space-y-4">
+                                {orders.map(order => (
+                                    <div key={order._id} className="border p-4 rounded bg-gray-50">
+                                        <div className="flex justify-between">
+                                            <div>
+                                                <p className="font-bold">Order #{order._id.slice(-6)}</p>
+                                                <p className="text-sm">Store: {order.vendor?.storeName}</p>
+                                                <p className="text-sm">Location: {order.vendor?.location}</p>
+                                            </div>
+                                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs h-fit">
+                                                {order.status}
+                                            </span>
+                                        </div>
+                                        {/* Status Context for Agent */}
+                                        <div className="mt-2 text-sm text-gray-600 italic">
+                                            {order.status === 'agent_requested' && "Waiting for Vendor to approve you..."}
+                                            {order.status === 'out_for_delivery' && "Active! Please deliver to Customer."}
+                                            {order.status === 'delivered' && "Job Done."}
+                                        </div>
+                                        {order.status === 'out_for_delivery' && (
+                                            <button
+                                                onClick={() => handleStatusUpdate(order._id, 'delivered')}
+                                                className="mt-2 w-full bg-purple-600 text-white py-2 rounded font-bold hover:bg-purple-700"
+                                            >
+                                                Mark Delivered
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {user.role === 'admin' && (
-                    <div className="bg-white p-6 rounded shadow border-l-4 border-purple-500">
-                        <h2 className="text-xl font-bold mb-4">System Overview</h2>
-                        <p className="text-gray-500">Manage users and platform settings.</p>
+                    <div className="bg-white p-6 rounded shadow border-l-4 border-purple-500 col-span-full">
+                        <h2 className="text-xl font-bold mb-4">System Overview (Admin)</h2>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full leading-normal">
+                                <thead>
+                                    <tr>
+                                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order ID</th>
+                                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
+                                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Vendor</th>
+                                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Agent</th>
+                                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {orders.map(order => (
+                                        <tr key={order._id}>
+                                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{order._id.slice(-6)}</td>
+                                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{order.user?.name || 'User'}</td>
+                                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{order.vendor?.storeName}</td>
+                                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{order.deliveryAgent?.name || '-'}</td>
+                                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                    {order.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">₹{order.totalAmount}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>

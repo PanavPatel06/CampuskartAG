@@ -79,6 +79,21 @@ const getVendorOrders = async (req, res) => {
 // @desc    Update order status
 // @route   PUT /api/orders/:id/status
 // @access  Private
+// @desc    Get all orders (Admin)
+// @route   GET /api/orders/admin/all
+// @access  Private (Admin)
+const getAllOrders = async (req, res) => {
+    const orders = await Order.find({})
+        .populate('user', 'id name')
+        .populate('vendor', 'storeName location')
+        .populate('deliveryAgent', 'name')
+        .sort({ createdAt: -1 });
+    res.json(orders);
+};
+
+// @desc    Update order status
+// @route   PUT /api/orders/:id/status
+// @access  Private
 const updateOrderStatus = async (req, res) => {
     const { status } = req.body;
     const order = await Order.findById(req.params.id);
@@ -94,10 +109,11 @@ const updateOrderStatus = async (req, res) => {
                     throw new Error('Customers can only cancel pending orders');
                 }
             }
-            // Case 2: Delivery Agent Accepting Order
-            else if (status === 'out_for_delivery') {
-                // Agent is claiming the order
+            // Case 2: Delivery Agent Requesting Order (Handshake Step 1)
+            else if (status === 'agent_requested') {
+                // Agent requests to take the order
                 order.deliveryAgent = req.user._id;
+                // We do NOT set it to 'out_for_delivery' yet.
             }
             // Case 3: Delivery Agent Completing Order
             else if (status === 'delivered') {
@@ -105,6 +121,13 @@ const updateOrderStatus = async (req, res) => {
                     res.status(401);
                     throw new Error('Not authorized to complete this delivery');
                 }
+            }
+            // Legacy/Direct Accept (if we still want to support skip-handshake, but user requested handshake)
+            // Let's remove direct 'out_for_delivery' for agents to enforce handshake.
+            else if (status === 'out_for_delivery') {
+                // Only Vendor can set this now (approving the agent)
+                res.status(401);
+                throw new Error('Wait for vendor approval');
             }
             else {
                 res.status(401);
@@ -118,38 +141,53 @@ const updateOrderStatus = async (req, res) => {
                 res.status(401);
                 throw new Error('Not authorized to update this order');
             }
+            // Vendor approving agent
+            if (status === 'out_for_delivery' && order.status === 'agent_requested') {
+                // Keep the deliveryAgent that was set
+            }
+        }
+        // If Admin: Can do anything
+        else if (req.user.role === 'admin') {
+            // Admin power
         }
 
         order.status = status;
         const updatedOrder = await order.save();
 
-        // Socket.IO: Notify agents if order is marked ready/out_for_delivery
-        if (status === 'out_for_delivery' || status === 'accepted') {
-            try {
-                const { getIO } = require('../socket');
-                const io = getIO();
+        // Socket.IO Notifications
+        try {
+            const { getIO } = require('../socket');
+            const io = getIO();
+            const populatedOrder = await Order.findById(updatedOrder._id)
+                .populate('vendor', 'storeName location')
+                .populate('deliveryAgent', 'name'); // Populate agent name
 
-                // Populate vendor details for the notification
-                const populatedOrder = await Order.findById(updatedOrder._id).populate('vendor', 'storeName location');
-
-                if (!populatedOrder || !populatedOrder.vendor) {
-                    console.error(`[Socket] Error: Vendor data missing for Order ${updatedOrder._id}`);
-                } else {
-                    // Emit to agents in the same location as the vendor
-                    const locationRaw = populatedOrder.vendor.location || "";
-                    const normalizedLocation = locationRaw.trim().toLowerCase().replace(/\s+/g, '_');
-                    const targetRoom = `delivery_${normalizedLocation}`;
-
-                    console.log(`[Socket] Vendor Location: '${locationRaw}' -> Room: '${targetRoom}'`);
-
-                    // Emit ONLY to specific location room (Strict Mode)
-                    io.to(targetRoom).emit('new_delivery_request', populatedOrder);
-
-                    console.log(`[Socket] SUCCESS: Emitted event to ${targetRoom}`);
-                }
-            } catch (err) {
-                console.error('[Socket] CRITICAL FAILURE:', err);
+            // 1. Notify Vendor Room (Agent requested pickup)
+            if (status === 'agent_requested') {
+                // Notify Vendor uniquely? For now, we broadcast to the room or just let Frontend poll/refresh.
+                // Ideally, emit to 'vendor_room'. We haven't implemented specific vendor rooms yet.
+                // But Dashboard.js polls. We can emit a generic 'order_updated' event.
+                io.emit('order_updated', populatedOrder);
             }
+
+            // 2. Notify Agent (Vendor approved)
+            if (status === 'out_for_delivery') {
+                io.emit('order_updated', populatedOrder);
+            }
+
+            // 3. New Delivery Request (Vendor Accepted)
+            if (status === 'accepted') {
+                // ... (Existing logic for location-based emit)
+                const locationRaw = populatedOrder.vendor.location || "";
+                const normalizedLocation = locationRaw.trim().toLowerCase().replace(/\s+/g, '_');
+                const targetRoom = `delivery_${normalizedLocation}`;
+                console.log(`[Socket] Vendor Location: '${locationRaw}' -> Room: '${targetRoom}'`);
+                io.to(targetRoom).emit('new_delivery_request', populatedOrder);
+                console.log(`[Socket] SUCCESS: Emitted event to ${targetRoom}`);
+            }
+
+        } catch (err) {
+            console.error('[Socket] CRITICAL FAILURE:', err);
         }
 
         res.json(updatedOrder);
@@ -209,10 +247,27 @@ const getAvailableDeliveryOrders = async (req, res) => {
     }
 };
 
+// @desc    Get active deliveries for agent
+// @route   GET /api/orders/delivery/my
+// @access  Private (Agent)
+const getMyDeliveries = async (req, res) => {
+    try {
+        const orders = await Order.find({ deliveryAgent: req.user._id })
+            .populate('vendor', 'storeName location')
+            .populate('customer', 'name phone')
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     addOrderItems,
     getMyOrders,
     getVendorOrders,
     updateOrderStatus,
-    getAvailableDeliveryOrders
+    getAvailableDeliveryOrders,
+    getAllOrders,
+    getMyDeliveries
 };

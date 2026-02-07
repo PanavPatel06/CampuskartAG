@@ -20,6 +20,12 @@ const initSocket = (server) => {
             socket.join("delivery_agents");
         });
 
+        socket.on("leave_delivery", ({ userId, location }) => {
+            const normalizedLocation = location.trim().toLowerCase().replace(/\s+/g, '_');
+            console.log(`User ${userId} LEFT delivery room for location: '${location}'`);
+            socket.leave(`delivery_${normalizedLocation}`);
+        });
+
         socket.on("disconnect", () => {
             console.log("Client disconnected: " + socket.id);
         });
