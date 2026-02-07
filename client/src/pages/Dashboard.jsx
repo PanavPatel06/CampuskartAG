@@ -9,16 +9,22 @@ const Dashboard = () => {
 
     const fetchOrders = async () => {
         if (user) {
+            console.log('[Dashboard] Fetching orders for user:', user.email, user.role);
             try {
                 let data;
                 if (user.role === 'vendor') {
                     const response = await getVendorOrders();
+                    console.log('[Dashboard] Vendor Orders Response:', response.data);
                     data = response.data;
                 } else if (user.role === 'user') {
                     const response = await getMyOrders();
+                    console.log('[Dashboard] User Orders Response:', response.data);
                     data = response.data;
                 }
-                if (data) setOrders(data);
+                if (data) {
+                    console.log('[Dashboard] Setting orders state:', data.length);
+                    setOrders(data);
+                }
             } catch (error) {
                 console.error('Failed to fetch orders', error);
                 setError('Failed to load orders. ' + (error.response?.data?.message || 'Server error.'));
@@ -55,6 +61,9 @@ const Dashboard = () => {
                 <p className="text-gray-600">
                     Email: {user.email}
                 </p>
+                <div className="mt-2 p-2 bg-gray-100 text-xs rounded hidden">
+                    Debug: Orders Count = {orders.length} | Role = {user.role}
+                </div>
                 {user.role === 'user' && (
                     <div className="mt-4 p-4 bg-blue-50 rounded">
                         <p className="text-lg font-medium text-blue-800">Wallet Balance: ₹{user.walletBalance || 0}</p>

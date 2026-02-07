@@ -13,8 +13,8 @@ const initSocket = (server) => {
         console.log("New client connected: " + socket.id);
 
         socket.on("join_delivery", ({ userId, location }) => {
-            const normalizedLocation = location.toLowerCase().replace(/\s+/g, '_');
-            console.log(`User ${userId} joined delivery room for location: ${location} -> ${normalizedLocation}`);
+            const normalizedLocation = location.trim().toLowerCase().replace(/\s+/g, '_');
+            console.log(`User ${userId} joined delivery room for location: '${location}' -> '${normalizedLocation}'`);
             socket.join(`delivery_${normalizedLocation}`);
             // Also join a global room if needed
             socket.join("delivery_agents");

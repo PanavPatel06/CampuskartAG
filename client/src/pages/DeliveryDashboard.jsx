@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { io } from "socket.io-client";
 import AuthContext from '../context/AuthContext';
-import { updateOrderStatus } from '../services/api';
+import { updateOrderStatus, getAvailableOrders } from '../services/api';
 
 // Initialize socket outside component to prevent multiple connections
 const socket = io("http://localhost:5001");
@@ -36,6 +36,25 @@ const DeliveryDashboard = () => {
         if (isOnline && user) {
             socket.emit("join_delivery", { userId: user._id, location: selectedLocation });
             console.log(`[Client] Emitting join_delivery for ${selectedLocation}`);
+
+            // Fetch existing available orders
+            const fetchExisting = async () => {
+                try {
+                    console.log(`[Client] Fetching existing orders for ${selectedLocation}...`);
+                    const res = await getAvailableOrders(selectedLocation);
+                    console.log(`[Client] API Response:`, res.data);
+                    console.log(`[Client] Found ${res.data.length} existing orders.`);
+                    setAvailableOrders(prev => {
+                        // Merge without duplicates
+                        const newOrders = res.data.filter(newO => !prev.find(p => p._id === newO._id));
+                        return [...prev, ...newOrders];
+                    });
+                } catch (err) {
+                    console.error("Failed to fetch existing orders:", err);
+                    alert("Debug: Failed to fetch orders. See console.");
+                }
+            };
+            fetchExisting();
         }
 
         socket.on("new_delivery_request", (order) => {
@@ -115,11 +134,16 @@ const DeliveryDashboard = () => {
                 </div>
             )}
 
+            {/* DEBUG SECTION */}
+            <div className="mb-4 p-2 bg-gray-100 text-xs text-gray-600 rounded">
+                DEBUG: Location={selectedLocation} | Online={isOnline.toString()} | Orders={availableOrders.length}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {availableOrders.length === 0 ? (
                     <div className="col-span-full text-center py-12 bg-white rounded-lg shadow">
-                        <p className="text-gray-500 text-lg">No active delivery requests nearby.</p>
-                        <p className="text-gray-400 text-sm mt-2">Waiting for new orders...</p>
+                        <p className="text-gray-500 text-lg">No active delivery requests in <span className="font-bold text-gray-700">{selectedLocation}</span>.</p>
+                        <p className="text-gray-400 text-sm mt-2">Waiting for new orders from vendors in this area...</p>
                     </div>
                 ) : (
                     availableOrders.map(order => (

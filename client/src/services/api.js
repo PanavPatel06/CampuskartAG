@@ -42,6 +42,8 @@ export const addProduct = (productData) => API.post('/products', productData);
 
 export const getAllProducts = () => API.get('/products');
 
+export const getAvailableOrders = (location) => API.get(`/orders/delivery/available?location=${location}`);
+
 export const updateOrderStatus = (orderId, status) => API.put(`/orders/${orderId}/status`, { status });
 
 export default API;
