@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { io } from "socket.io-client";
 import AuthContext from '../context/AuthContext';
-import { updateOrderStatus, getAvailableOrders } from '../services/api';
+import { updateOrderStatus, getAvailableOrders, getLocations } from '../services/api';
 
 // Initialize socket outside component to prevent multiple connections
 const socket = io("http://localhost:5001");
@@ -10,11 +10,16 @@ const DeliveryDashboard = () => {
     const { user } = useContext(AuthContext);
     const [isOnline, setIsOnline] = useState(false);
     const [availableOrders, setAvailableOrders] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState('Hostel A');
+    const [selectedLocation, setSelectedLocation] = useState('');
+    const [locations, setLocations] = useState([]); // Dynamic locations
     const [isConnected, setIsConnected] = useState(socket.connected);
 
-    // Available locations on campus
-    const LOCATIONS = ['Hostel A', 'Hostel B', 'Main Building', 'Library', 'Canteen'];
+    useEffect(() => {
+        getLocations().then(({ data }) => {
+            setLocations(data);
+            if (data.length > 0 && !selectedLocation) setSelectedLocation(data[0].name);
+        }).catch(console.error);
+    }, []);
 
     useEffect(() => {
         // Socket Connection Monitoring
@@ -33,7 +38,7 @@ const DeliveryDashboard = () => {
             setIsConnected(false);
         });
 
-        if (isOnline && user) {
+        if (isOnline && user && selectedLocation) {
             socket.emit("join_delivery", { userId: user._id, location: selectedLocation });
             console.log(`[Client] Emitting join_delivery for ${selectedLocation}`);
 
@@ -121,8 +126,8 @@ const DeliveryDashboard = () => {
                             onChange={(e) => setSelectedLocation(e.target.value)}
                             className="border border-gray-300 rounded px-3 py-2 text-gray-700 focus:outline-none focus:border-indigo-500"
                         >
-                            {LOCATIONS.map(loc => (
-                                <option key={loc} value={loc}>{loc}</option>
+                            {locations.map(loc => (
+                                <option key={loc._id} value={loc.name}>{loc.name}</option>
                             ))}
                         </select>
                     )}

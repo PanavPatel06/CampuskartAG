@@ -1,21 +1,30 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import CartContext from '../context/CartContext';
-import { createOrder } from '../services/api';
+import AuthContext from '../context/AuthContext';
+import { createOrder, getLocations } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const Cart = () => {
     const { cartItems, removeFromCart, clearCart, cartTotal } = useContext(CartContext);
     const navigate = useNavigate();
 
+    const [instructions, setInstructions] = useState("");
+    const [locations, setLocations] = useState([]);
+    const [deliveryLocation, setDeliveryLocation] = useState("");
+    const { user } = useContext(AuthContext);
+
+    useEffect(() => {
+        getLocations().then(({ data }) => setLocations(data)).catch(console.error);
+    }, []);
+
+    // Group items by Vendor first to avoid multiple loops
+    const validItems = cartItems.filter(item => item.vendor && (item.vendor._id || typeof item.vendor === 'string'));
+
     const handleCheckout = async () => {
-        if (cartItems.length === 0) return;
-
-        // Filter out items with invalid/missing vendor data (prevents crash)
-        const validItems = cartItems.filter(item => item.vendor && (item.vendor._id || typeof item.vendor === 'string'));
-
-        if (validItems.length === 0) {
-            alert('Critial Error: All items in cart have invalid vendor data. Clearing cart.');
-            clearCart();
+        if (validItems.length === 0) return;
+        if (!deliveryLocation) {
+            alert('Please select a delivery location.');
             return;
         }
 
@@ -23,7 +32,6 @@ const Cart = () => {
             alert('Notice: Some items were removed due to invalid vendor data.');
         }
 
-        // Group items by Vendor to create separate orders per vendor
         const itemsByVendor = validItems.reduce((acc, item) => {
             const vId = item.vendor?._id || item.vendor;
             if (!acc[vId]) acc[vId] = [];
@@ -38,13 +46,15 @@ const Cart = () => {
 
                 const orderData = {
                     orderItems: vendorItems.map(item => ({
-                        product: item._id, // Include product ref
+                        product: item._id,
                         name: item.name,
                         qty: item.qty,
                         price: item.price
                     })),
-                    vendorId: vendorId, // Use the vendor ID from the group
-                    totalPrice: vendorTotal
+                    vendorId: vendorId,
+                    totalPrice: vendorTotal,
+                    instructions: instructions,
+                    deliveryLocation: deliveryLocation
                 };
 
                 await createOrder(orderData);
@@ -97,6 +107,40 @@ const Cart = () => {
                         ))}
                     </tbody>
                 </table>
+
+                {/* Instructions Input */}
+                <div className="p-6 bg-gray-50 border-t border-gray-200">
+                    <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-2">
+                        Delivery Instructions (Optional)
+                    </label>
+                    <textarea
+                        id="instructions"
+                        rows="3"
+                        className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2"
+                        placeholder="e.g., Leave at front desk, call upon arrival..."
+                        value={instructions}
+                        onChange={(e) => setInstructions(e.target.value)}
+                    />
+                </div>
+
+                {/* Location Selection */}
+                <div className="p-6 bg-gray-50 border-t border-gray-200">
+                    <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                        Delivery Location (Required)
+                    </label>
+                    <select
+                        id="location"
+                        value={deliveryLocation}
+                        onChange={(e) => setDeliveryLocation(e.target.value)}
+                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    >
+                        <option value="">Select a location</option>
+                        {locations.map(loc => (
+                            <option key={loc._id} value={loc.name}>{loc.name}</option>
+                        ))}
+                    </select>
+                </div>
+
                 <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end items-center">
                     <div className="text-xl font-bold mr-6">Total: ₹{cartTotal}</div>
                     <button

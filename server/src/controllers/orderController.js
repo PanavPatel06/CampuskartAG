@@ -18,17 +18,25 @@ const addOrderItems = async (req, res) => {
         throw new Error('No order items');
     } else {
         try {
+            // Generate 4-digit OTP
+            const otp = Math.floor(1000 + Math.random() * 9000).toString();
+            console.log('[addOrderItems] Generated OTP:', otp);
+
             const order = new Order({
                 customer: req.user._id,
                 vendor: vendorId,
                 items: orderItems,
                 totalAmount: totalPrice,
-                status: 'pending'
+                status: 'pending',
+                deliveryOtp: otp,
+                instructions: req.body.instructions || "",
+                deliveryLocation: req.body.deliveryLocation // Save selected location
             });
 
-            console.log('[addOrderItems] Attempting to save order:', order);
+            console.log('[addOrderItems] Order Object before save:', order);
             const createdOrder = await order.save();
             console.log('[addOrderItems] Order saved successfully:', createdOrder._id);
+            console.log('[addOrderItems] Saved Order OTP:', createdOrder.deliveryOtp);
 
             res.status(201).json(createdOrder);
         } catch (error) {
@@ -84,7 +92,7 @@ const getVendorOrders = async (req, res) => {
 // @access  Private (Admin)
 const getAllOrders = async (req, res) => {
     const orders = await Order.find({})
-        .populate('user', 'id name')
+        .populate('customer', 'id name')
         .populate('vendor', 'storeName location')
         .populate('deliveryAgent', 'name')
         .sort({ createdAt: -1 });
@@ -120,6 +128,12 @@ const updateOrderStatus = async (req, res) => {
                 if (order.deliveryAgent && order.deliveryAgent.toString() !== req.user._id.toString()) {
                     res.status(401);
                     throw new Error('Not authorized to complete this delivery');
+                }
+                // Verify OTP
+                const { otp } = req.body;
+                if (!otp || otp !== order.deliveryOtp) {
+                    res.status(400);
+                    throw new Error('Invalid OTP. Delivery cannot be verified.');
                 }
             }
             // Legacy/Direct Accept (if we still want to support skip-handshake, but user requested handshake)

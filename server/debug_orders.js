@@ -1,27 +1,30 @@
 const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 const Order = require('./src/models/Order');
-const Vendor = require('./src/models/Vendor');
-const User = require('./src/models/User');
-require('dotenv').config();
 
-const check = async () => {
-    await mongoose.connect(process.env.MONGO_URI);
+dotenv.config();
 
-    const orders = await Order.find({}).sort({ createdAt: -1 }).limit(5).populate('vendor');
+const checkOrders = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('Connected to DB');
 
-    console.log("--- Recent Orders ---");
-    for (const o of orders) {
-        console.log(`Order ID: ${o._id}`);
-        console.log(`  Created At: ${o.createdAt}`);
-        console.log(`  Vendor Ref: ${o.vendor?._id}`);
-        if (o.vendor) {
-            console.log(`  Vendor Name: ${o.vendor.storeName}`);
-            console.log(`  Vendor User ID: ${o.vendor.user}`);
-        } else {
-            console.log(`  Vendor Field (Raw):`, o.vendor); // Might be an ID that failed to populate
-        }
-        console.log('----------------');
+        const orders = await Order.find().sort({ createdAt: -1 }).limit(5);
+
+        console.log('--- LATEST 5 ORDERS ---');
+        orders.forEach(o => {
+            console.log(`ID: ${o._id}`);
+            console.log(`Status: ${o.status}`);
+            console.log(`OTP: ${o.deliveryOtp}`);
+            console.log(`Created: ${o.createdAt}`);
+            console.log('-----------------------');
+        });
+
+        process.exit();
+    } catch (error) {
+        console.error(error);
+        process.exit(1);
     }
-    process.exit(0);
 };
-check();
+
+checkOrders();

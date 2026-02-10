@@ -42,6 +42,16 @@ const orderSchema = new mongoose.Schema({
         enum: ['pending', 'accepted', 'agent_requested', 'out_for_delivery', 'delivered', 'cancelled'],
         default: 'pending',
     },
+    deliveryOtp: {
+        type: String, // 4-digit code
+    },
+    instructions: {
+        type: String,
+    },
+    deliveryLocation: {
+        type: String,
+        required: true
+    }
 }, {
     timestamps: true,
 });

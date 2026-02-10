@@ -48,6 +48,10 @@ export const getMyDeliveries = () => API.get('/orders/delivery/my');
 
 export const getAllOrders = () => API.get('/orders/admin/all');
 
-export const updateOrderStatus = (orderId, status) => API.put(`/orders/${orderId}/status`, { status });
+export const getLocations = () => API.get('/locations');
+export const addLocation = (name) => API.post('/locations', { name });
+export const deleteLocation = (id) => API.delete(`/locations/${id}`);
+
+export const updateOrderStatus = (orderId, status, otp) => API.put(`/orders/${orderId}/status`, { status, otp });
 
 export default API;
