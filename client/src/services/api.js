@@ -54,4 +54,12 @@ export const deleteLocation = (id) => API.delete(`/locations/${id}`);
 
 export const updateOrderStatus = (orderId, status, otp) => API.put(`/orders/${orderId}/status`, { status, otp });
 
+// Wallet & Commission
+export const addFunds = (userId, amount) => API.post('/wallet/add-funds', { userId, amount });
+export const getMyWallet = () => API.get('/wallet/my-wallet');
+export const getSystemEarnings = () => API.get('/wallet/earnings');
+export const getCommissionRates = () => API.get('/wallet/commission');
+export const updateCommissionRates = (rates) => API.put('/wallet/commission', rates);
+export const searchUsers = (query) => API.get(`/wallet/users?search=${query}`);
+
 export default API;

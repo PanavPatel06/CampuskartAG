@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { uploadFile, createOrder, getVendors } from '../services/api';
+import { uploadFile, createOrder, getVendors, getLocations, getMyWallet } from '../services/api'; // Added getLocations, getMyWallet
+import AuthContext from '../context/AuthContext'; // Added AuthContext
 
 const PrintOrder = () => {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext); // Get user
     const [file, setFile] = useState(null);
     const [fileUrl, setFileUrl] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -12,20 +14,33 @@ const PrintOrder = () => {
     const [vendors, setVendors] = useState([]);
     const [vendorId, setVendorId] = useState('');
 
+    // New States
+    const [locations, setLocations] = useState([]);
+    const [deliveryLocation, setDeliveryLocation] = useState('');
+    const [walletBalance, setWalletBalance] = useState(0);
+
     useEffect(() => {
-        const fetchVendors = async () => {
+        const fetchData = async () => {
             try {
-                const { data } = await getVendors();
-                setVendors(data);
-                if (data.length > 0) {
-                    setVendorId(data[0]._id);
+                const vendorRes = await getVendors();
+                setVendors(vendorRes.data);
+                if (vendorRes.data.length > 0) {
+                    setVendorId(vendorRes.data[0]._id);
+                }
+
+                const locRes = await getLocations();
+                setLocations(locRes.data);
+
+                if (user) {
+                    const walletRes = await getMyWallet();
+                    setWalletBalance(walletRes.data.balance);
                 }
             } catch (error) {
-                console.error('Failed to fetch vendors', error);
+                console.error('Failed to fetch initial data', error);
             }
         };
-        fetchVendors();
-    }, []);
+        fetchData();
+    }, [user]);
 
     const [printOptions, setPrintOptions] = useState({
         color: 'bw',
@@ -66,10 +81,19 @@ const PrintOrder = () => {
             alert('Please select a vendor');
             return;
         }
+        if (!deliveryLocation) {
+            alert('Please select a delivery location');
+            return;
+        }
 
         // Calculate a dummy price
         const pricePerSheet = printOptions.color === 'color' ? 10 : 2;
         const totalPrice = pricePerSheet * printOptions.pages * printOptions.copies;
+
+        if (walletBalance < totalPrice) {
+            alert(`Insufficient Wallet Balance (₹${walletBalance}). Total Required: ₹${totalPrice}`);
+            return;
+        }
 
         const orderData = {
             orderItems: [{
@@ -80,7 +104,8 @@ const PrintOrder = () => {
                 printOptions
             }],
             totalPrice,
-            vendorId: vendorId
+            vendorId: vendorId,
+            deliveryLocation: deliveryLocation // Added
         };
 
         try {
@@ -128,6 +153,25 @@ const PrintOrder = () => {
                                 ))}
                             </select>
                             {vendors.length === 0 && <p className="text-xs text-red-500 mt-1">No vendors available. Please register a vendor user first.</p>}
+                            {vendors.length === 0 && <p className="text-xs text-red-500 mt-1">No vendors available. Please register a vendor user first.</p>}
+                        </div>
+
+                        {/* Location Selection */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Delivery Location</label>
+                            <select
+                                required
+                                value={deliveryLocation}
+                                onChange={(e) => setDeliveryLocation(e.target.value)}
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            >
+                                <option value="">Select Location</option>
+                                {locations.map((loc) => (
+                                    <option key={loc._id} value={loc.name}>
+                                        {loc.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* File Upload Section */}
@@ -151,6 +195,16 @@ const PrintOrder = () => {
                                 </button>
                             </div>
                             {fileUrl && <p className="text-xs text-green-600 mt-1">File ready: {file.name}</p>}
+                        </div>
+
+                        {/* Wallet Info */}
+                        <div className="bg-gray-50 p-3 rounded text-right">
+                            <p className={`text-sm font-bold ${walletBalance < (printOptions.color === 'color' ? 10 : 2) * printOptions.pages * printOptions.copies ? 'text-red-600' : 'text-green-600'}`}>
+                                Wallet Balance: ₹{walletBalance}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                Estimated Cost: ₹{(printOptions.color === 'color' ? 10 : 2) * printOptions.pages * printOptions.copies}
+                            </p>
                         </div>
 
                         {/* Print Options */}

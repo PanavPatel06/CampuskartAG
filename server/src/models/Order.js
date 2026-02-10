@@ -42,6 +42,16 @@ const orderSchema = new mongoose.Schema({
         enum: ['pending', 'accepted', 'agent_requested', 'out_for_delivery', 'delivered', 'cancelled'],
         default: 'pending',
     },
+    paymentStatus: {
+        type: String,
+        enum: ['paid', 'unpaid'],
+        default: 'unpaid',
+    },
+    commission: {
+        company: { type: Number, default: 0 },
+        delivery: { type: Number, default: 0 },
+        vendor: { type: Number, default: 0 },
+    },
     deliveryOtp: {
         type: String, // 4-digit code
     },

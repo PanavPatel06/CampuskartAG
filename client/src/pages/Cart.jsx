@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
-import { createOrder, getLocations } from '../services/api';
+import { createOrder, getLocations, getMyWallet } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
@@ -13,10 +13,14 @@ const Cart = () => {
     const [locations, setLocations] = useState([]);
     const [deliveryLocation, setDeliveryLocation] = useState("");
     const { user } = useContext(AuthContext);
+    const [walletBalance, setWalletBalance] = useState(0);
 
     useEffect(() => {
         getLocations().then(({ data }) => setLocations(data)).catch(console.error);
-    }, []);
+        if (user) {
+            getMyWallet().then(({ data }) => setWalletBalance(data.balance)).catch(console.error);
+        }
+    }, [user]);
 
     // Group items by Vendor first to avoid multiple loops
     const validItems = cartItems.filter(item => item.vendor && (item.vendor._id || typeof item.vendor === 'string'));
@@ -25,6 +29,11 @@ const Cart = () => {
         if (validItems.length === 0) return;
         if (!deliveryLocation) {
             alert('Please select a delivery location.');
+            return;
+        }
+
+        if (walletBalance < cartTotal) {
+            alert(`Insufficient Wallet Balance (₹${walletBalance}). Total Required: ₹${cartTotal}. Please report to Admin for recharge.`);
             return;
         }
 
@@ -141,8 +150,11 @@ const Cart = () => {
                     </select>
                 </div>
 
-                <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end items-center">
-                    <div className="text-xl font-bold mr-6">Total: ₹{cartTotal}</div>
+                <div className="p-6 bg-gray-50 border-t border-gray-200 flex flex-col items-end">
+                    <div className="text-xl font-bold mb-2">Total: ₹{cartTotal}</div>
+                    <div className={`text-md mb-4 ${walletBalance < cartTotal ? 'text-red-600' : 'text-green-600'}`}>
+                        Wallet Balance: ₹{walletBalance}
+                    </div>
                     <button
                         onClick={handleCheckout}
                         className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import AuthContext from '../context/AuthContext';
-import { getMyOrders, getVendorOrders, updateOrderStatus, getAllOrders, getMyDeliveries, getLocations, addLocation, deleteLocation } from '../services/api';
+import { getMyOrders, getVendorOrders, updateOrderStatus, getAllOrders, getMyDeliveries, getLocations, addLocation, deleteLocation, addFunds, searchUsers, getSystemEarnings, getCommissionRates, updateCommissionRates, getMyWallet } from '../services/api';
 
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
@@ -8,6 +8,17 @@ const Dashboard = () => {
     const [deliveries, setDeliveries] = useState([]); // User/Agent delivery tasks
     const [locations, setLocations] = useState([]); // State for admin locations
     const [error, setError] = useState(null);
+
+    // Admin Wallet States
+    const [walletSearch, setWalletSearch] = useState('');
+    const [walletUsers, setWalletUsers] = useState([]);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [fundAmount, setFundAmount] = useState('');
+    const [systemEarnings, setSystemEarnings] = useState(null);
+    const [commissionRates, setCommissionRates] = useState({ companyRate: 5, deliveryRate: 5 });
+
+    // User Wallet State
+    const [userWalletBalance, setUserWalletBalance] = useState(0);
 
     const fetchLocations = async () => {
         try {
@@ -33,6 +44,14 @@ const Dashboard = () => {
                     console.log('[Dashboard] User Orders Response:', orderRes.data);
                     orderData = orderRes.data;
 
+                    // Fetch Live Wallet Balance
+                    try {
+                        const { data } = await getMyWallet();
+                        setUserWalletBalance(data.balance);
+                    } catch (err) {
+                        console.error('Failed to fetch wallet balance', err);
+                    }
+
                     // Fetch Deliveries (User acting as Agent)
                     try {
                         const deliveryRes = await getMyDeliveries();
@@ -47,6 +66,7 @@ const Dashboard = () => {
                     console.log('[Dashboard] Admin Orders Response:', response.data);
                     orderData = response.data;
                     fetchLocations(); // Fetch locations only for admin
+                    fetchAdminWalletData();
                 } else if (user.role === 'agent') {
                     const response = await getMyDeliveries();
                     console.log('[Dashboard] Agent Deliveries Response:', response.data);
@@ -63,6 +83,45 @@ const Dashboard = () => {
                 setError('Failed to load data. ' + (error.response?.data?.message || 'Server error.'));
             }
         }
+    };
+
+    const fetchAdminWalletData = async () => {
+        try {
+            const earningsRes = await getSystemEarnings();
+            setSystemEarnings(earningsRes.data);
+            const commRes = await getCommissionRates();
+            setCommissionRates(commRes.data);
+        } catch (e) {
+            console.error('Failed to fetch admin wallet data', e);
+        }
+    };
+
+    const handleUserSearch = async (e) => {
+        e.preventDefault();
+        try {
+            const { data } = await searchUsers(walletSearch);
+            setWalletUsers(data);
+        } catch (e) { alert(e.message); }
+    };
+
+    const handleAddFunds = async () => {
+        if (!selectedUser || !fundAmount) return;
+        try {
+            await addFunds(selectedUser._id, fundAmount);
+            alert('Funds added successfully');
+            setFundAmount('');
+            setSelectedUser(null);
+            setWalletUsers([]); // Clear search
+            setWalletSearch('');
+            fetchAdminWalletData(); // Refresh earnings potentially? No, but maybe referesh if we showed user balance
+        } catch (e) { alert(e.response?.data?.message || e.message); }
+    };
+
+    const handleUpdateCommission = async () => {
+        try {
+            await updateCommissionRates(commissionRates);
+            alert('Commission rates updated');
+        } catch (e) { alert(e.message); }
     };
 
     useEffect(() => {
@@ -99,7 +158,7 @@ const Dashboard = () => {
                 </div>
                 {user.role === 'user' && (
                     <div className="mt-4 p-4 bg-blue-50 rounded">
-                        <p className="text-lg font-medium text-blue-800">Wallet Balance: ₹{user.walletBalance || 0}</p>
+                        <p className="text-lg font-medium text-blue-800">Wallet Balance: ₹{userWalletBalance !== undefined ? userWalletBalance : (user.walletBalance || 0)}</p>
                     </div>
                 )}
             </div>
@@ -317,6 +376,106 @@ const Dashboard = () => {
                             </div>
                         </div>
 
+                        {/* Wallet & Commission Management */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Wallet Manager */}
+                            <div className="bg-white p-6 rounded shadow border-l-4 border-green-500">
+                                <h2 className="text-xl font-bold mb-4">Add Funds to User</h2>
+                                <form onSubmit={handleUserSearch} className="flex gap-2 mb-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name or email"
+                                        value={walletSearch}
+                                        onChange={(e) => setWalletSearch(e.target.value)}
+                                        className="border p-2 rounded flex-1"
+                                    />
+                                    <button type="submit" className="bg-gray-600 text-white px-4 py-2 rounded">Search</button>
+                                </form>
+                                {walletUsers.length > 0 && (
+                                    <ul className="mb-4 border rounded max-h-40 overflow-y-auto">
+                                        {walletUsers.map(u => (
+                                            <li key={u._id}
+                                                onClick={() => setSelectedUser(u)}
+                                                className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser?._id === u._id ? 'bg-blue-100' : ''}`}
+                                            >
+                                                {u.name} ({u.email}) - ₹{u.walletBalance}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {selectedUser && (
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount"
+                                            value={fundAmount}
+                                            onChange={(e) => setFundAmount(e.target.value)}
+                                            className="border p-2 rounded flex-1"
+                                        />
+                                        <button
+                                            onClick={handleAddFunds}
+                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                        >
+                                            Add Funds
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* System Earnings & Commission */}
+                            <div className="bg-white p-6 rounded shadow border-l-4 border-yellow-500">
+                                <h2 className="text-xl font-bold mb-4">Earnings & Commission</h2>
+                                {systemEarnings && (
+                                    <div className="grid grid-cols-2 gap-4 mb-6">
+                                        <div className="bg-gray-50 p-3 rounded">
+                                            <p className="text-sm text-gray-500">Company Earnings</p>
+                                            <p className="text-xl font-bold text-green-600">₹{systemEarnings.totalCompanyEarnings.toFixed(2)}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-3 rounded">
+                                            <p className="text-sm text-gray-500">Delivery Payouts</p>
+                                            <p className="text-xl font-bold text-blue-600">₹{systemEarnings.totalDeliveryEarnings.toFixed(2)}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-3 rounded">
+                                            <p className="text-sm text-gray-500">Vendor Earnings</p>
+                                            <p className="text-xl font-bold text-orange-600">₹{systemEarnings.totalVendorEarnings.toFixed(2)}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-3 rounded">
+                                            <p className="text-sm text-gray-500">Total Sales</p>
+                                            <p className="text-xl font-bold text-gray-800">₹{systemEarnings.totalSales.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <h3 className="font-bold mb-2">Commission Rates (%)</h3>
+                                <div className="flex gap-4 items-end">
+                                    <div>
+                                        <label className="block text-xs text-gray-500">Company %</label>
+                                        <input
+                                            type="number"
+                                            value={commissionRates.companyRate}
+                                            onChange={(e) => setCommissionRates({ ...commissionRates, companyRate: Number(e.target.value) })}
+                                            className="border p-2 rounded w-20"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-500">Delivery %</label>
+                                        <input
+                                            type="number"
+                                            value={commissionRates.deliveryRate}
+                                            onChange={(e) => setCommissionRates({ ...commissionRates, deliveryRate: Number(e.target.value) })}
+                                            className="border p-2 rounded w-20"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleUpdateCommission}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                    >
+                                        Update
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* System Overview */}
                         <div className="bg-white p-6 rounded shadow border-l-4 border-purple-500">
                             <h2 className="text-xl font-bold mb-4">System Overview (Admin)</h2>
@@ -356,7 +515,7 @@ const Dashboard = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

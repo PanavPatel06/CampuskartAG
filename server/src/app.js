@@ -19,6 +19,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/wallet', require('./routes/walletRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 
 // Root Route

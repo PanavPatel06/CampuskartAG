@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-    wallet: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Wallet',
+        ref: 'User',
         required: true,
     },
     amount: {
@@ -18,9 +18,9 @@ const transactionSchema = new mongoose.Schema({
     description: {
         type: String,
     },
-    reference: {
+    order: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Order', // Optional, if this transaction is linked to an order
+        ref: 'Order',
     },
     status: {
         type: String,
