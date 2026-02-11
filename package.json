@@ -4,8 +4,10 @@
   "description": "CampusKart full stack application",
   "main": "index.js",
   "scripts": {
-    "server": "npm start --prefix server",
+    "start": "npm start --prefix server",
+    "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client",
+    "build": "npm install --prefix client && npm run build --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "keywords": [],
