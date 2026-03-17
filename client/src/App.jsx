@@ -9,19 +9,20 @@ import AddProduct from './pages/AddProduct';
 import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
 import DeliveryDashboard from './pages/DeliveryDashboard';
+import Home from './pages/Home';
 
 import { CartProvider } from './context/CartContext';
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-indigo-100 selection:text-indigo-900 flex flex-col">
       <CartProvider>
         <Navbar />
         <Routes>
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/print-order" element={<PrintOrder />} />
             <Route path="/add-product" element={<AddProduct />} />
